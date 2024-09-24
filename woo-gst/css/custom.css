@@ -1,0 +1,13 @@
+.woocommerce_page_wc-settings .woo-gst-settings {
+    clear: both;
+    overflow: hidden;
+}
+
+.woocommerce_page_wc-settings .gstsettings {
+    max-width: 50%;
+    overflow: hidden;
+    clear: both;
+    margin: 0;
+    padding: 0;
+    float: left;
+}
