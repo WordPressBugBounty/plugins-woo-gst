@@ -1,13 +1,16 @@
 <?php
 /**
- * Plugin Name: WooCommerce GST
- * Description: WooCommerce addon for GST.
- * Author: Stark Digital
- * Author URI: https://www.starkdigital.net
- * Version: 1.6
- * Plugin URI: https://www.woocommercegst.co.in
- * WC requires at least: 3.0.0
- * WC tested up to: 8.9.1
+* Plugin Name: GST Invoice for WooCommerce
+* Plugin URI: https://gstforecom.com/
+* Description: Generate GST-compliant invoices and automated tax slabs (CGST, SGST, IGST) for WooCommerce stores in India.
+* Version: 1.7
+* Requires Plugins: woocommerce
+* Author: Stark Digital
+* Author URI: https://starkdigital.net
+* License: GPLv2 or later
+* License URI: https://www.gnu.org/licenses/gpl-2.0.html
+* Text Domain: woo-gst
+* Domain Path: /languages
  */
 
 if (!defined('ABSPATH'))
@@ -15,6 +18,8 @@ if (!defined('ABSPATH'))
     exit; // Exit if accessed directly
 }
 require_once('inc/functions.php');
+require_once __DIR__ . '/inc/wc-gst-privacy.php';
+
 /**
  * Check WooCommerce exists
  */
@@ -23,7 +28,7 @@ if ( fn_is_woocommerce_active() ) {
 	define('gst_ABS_PATH', plugin_dir_path(__FILE__));
 	define( 'gst_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 	define( 'gst_BASENAME', plugin_basename(__FILE__) );
-	define( 'GST_PRO_LINK', 'https://www.woocommercegst.co.in/?utm_source=wordpress&utm_medium=plugin_notice');
+	define( 'GST_PRO_LINK', 'https://gstforecom.com/?utm_source=wordpress&utm_medium=plugin_notice');
 	
 	require_once( 'class-gst-woocommerce-addon.php' );
 
@@ -47,16 +52,30 @@ function admin_menu_woo_settings() {
 }
 add_action('admin_menu', 'admin_menu_woo_settings');
 
+//Start of HubSpot Embed Code 
+function gst_enqueue_hubspot_script() {
+    wp_enqueue_script(
+        'hs-script-loader',
+        '//js.hs-scripts.com/24401330.js',
+        array(),
+        null,
+        true
+    );
+}
+add_action('wp_enqueue_scripts', 'gst_enqueue_hubspot_script');
+
+
+//End of HubSpot Embed Code
+
 function admin_menu_woo_settings_content(){ 
 	$query_string = '&form=submitted';
 	
 	?>
-	<!-- Start of HubSpot Embed Code -->
-		<script type="text/javascript" id="hs-script-loader" async defer src="//js.hs-scripts.com/24401330.js"></script>
-	<!-- End of HubSpot Embed Code -->
+	
 	<div class="woogst-block">
-		<a href="https://www.woocommercegst.co.in/" target="_blank">
-			<img style="width:98%" src="<?php echo plugins_url( 'woo-gst/images/Woogst_Banner.jpg' );?>">
+		<a href="https://gstforecom.com/" target="_blank">
+			<img style="width:98%" src="<?php echo esc_url( plugins_url( 'woo-gst/images/Woogst_Banner.jpg' ) ); ?>" alt="GST Invoice for WooCommerce Banner">
+
 		</a>
 	</div> 
 	<?php

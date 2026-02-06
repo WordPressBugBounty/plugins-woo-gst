@@ -1,9 +1,8 @@
 <?php
 function fn_gst_admin_notice__error() {
-	$class = 'notice notice-error';
-	$message = __( 'GST Addon is enabled but not effective. It requires WooCommerce in order to work.', 'gst' );
-
-	printf( '<div class="%1$s"><p>%2$s</p></div>', $class, $message ); 
+    $class   = 'notice notice-error';
+    $message = __( 'GST Addon is enabled but not effective. It requires WooCommerce in order to work.', 'woo-gst' );
+    printf( '<div class="%1$s"><p>%2$s</p></div>', esc_attr( $class ), esc_html( $message ) );
 }
 /**
  * Functions used by plugins

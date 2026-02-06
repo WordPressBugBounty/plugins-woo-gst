@@ -1,10 +1,10 @@
-=== WooCommerce GST Plugin ===
+===  GST Invoice for WooCommerce ===
 Contributors: starkinfo
 Tags: gst, woocommerce, addon, woocommerce addon, GST tax, woocommerce tax, Indian GST tax,hsn,hsn code, hsn code woocommerce, sac, sac code, sac code woocommerce, HSN/SAC, HSN/SAC code, HSN/SAC code woocommerce  
 Requires at least: 4.0
-Requires PHP : 5.6
-Tested up to: 6.5
-Stable tag: 1.
+Requires PHP : 7.6
+Tested up to: 6.8
+Stable tag: 1.7
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,21 +12,31 @@ This plugin is for GST tax setting. It set all tax including Tax slabs setting f
 
 == Description ==
 
-Using WooCommerce GST Plugin, you are able to manage the GST tax for your store. You can specify the GSTIN number on GST settings tab in WooCommerce setting. You can also choose your site content single or multiple type product and according that you can choose tax slabs. Plugin also provide 'HSN/SAC Code' meta field for product unique code in general setting of product. 
+Managing GST invoices for WooCommerce doesn’t have to be complicated anymore.  
+With GST Invoice For WooCommerce, you can automate end-to-end GST tax calculations, apply the correct tax slabs (CGST, SGST, IGST, UTGST), and generate GST-compliant invoices — all directly from your WooCommerce store.  
 
-A few features:
+Whether you run a small business or a growing eCommerce brand, manual GST billing often leads to errors, penalties, and wasted time. This plugin solves that by letting you easily configure GST settings, add GSTIN and HSN/SAC codes, and apply automated tax rules for every order. It’s built especially for Indian WooCommerce sellers who want to stay 100% GST compliant without juggling spreadsheets.  
 
-* Admin can configure GST settings.
-* Admin can enter their GSTIN code and that will be shown on invoice.
-* Meta field for 'HSN/SAC Code'.
-* Admin can choose required tax slabs.
-* Generates tax slabs with CGST, SGST and IGST automatically.
-* Added UTGST(Union Territory Goods and Service Tax.) support.
-* Dynamic tax slabs (**PRO**).
-* PDF invoice with GSTIN and HSN/SAC Number (**PRO**).
-* Capture customer GSTIN Number during checkout (**PRO**).
 
-<a href="https://www.woocommercegst.co.in" target="_blank"><strong>Checkout our PRO plugin</strong></a>
+== Key Features ==
+
+* Automated GST Calculation – Apply CGST, SGST, IGST & UTGST based on billing & shipping addresses.  
+* Add GSTIN Number – Display your business GSTIN number on every WooCommerce invoice.  
+* Product level HSN/SAC Codes – Add HSN/SAC codes for accurate GST classification.  
+* Easy GST Settings Panel – Configure tax rules quickly from the WooCommerce dashboard.  
+* Flexible Tax Slabs – Works for single or multiple product types.  
+* 100% Made for Indian Sellers – Designed to handle Indian GST structure & rules seamlessly.  
+* Instant GST-compliant Invoices – Auto-generate invoices after each order.  
+
+== PRO Features ==
+
+* PDF GST Invoices with GSTIN & HSN/SAC details for every order.  
+* Dynamic Tax Slabs for complex product catalogs & multi-rate GST.  
+* Customer GSTIN Capture during checkout — ideal for B2B invoicing.  
+* Advanced Invoice Branding to personalize invoices professionally.  
+* Priority Support & Updates for smooth GST compliance.   
+
+<a href="https://gstforecom.com/" target="_blank"><strong>Checkout our PRO plugin</strong></a>
 
 == Installation ==
 
@@ -34,6 +44,11 @@ A few features:
 2. Activate the plugin through the 'Plugins' menu in WordPress
 3. Configure WooCommerce -> GST Settings
 
+== External services ==
+
+This plugin loads a HubSpot tracking script (https://js.hs-scripts.com/) used for analytics.
+No user data is sent from WordPress to HubSpot by this plugin.
+HubSpot Privacy Policy: https://legal.hubspot.com/privacy-policy
 
 == Frequently asked questions ==
 
