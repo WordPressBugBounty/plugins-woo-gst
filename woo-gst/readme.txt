@@ -1,10 +1,10 @@
 ===  GST Invoice for WooCommerce ===
 Contributors: starkinfo
 Tags: gst, woocommerce, addon, woocommerce addon, GST tax, woocommerce tax, Indian GST tax,hsn,hsn code, hsn code woocommerce, sac, sac code, sac code woocommerce, HSN/SAC, HSN/SAC code, HSN/SAC code woocommerce  
-Requires at least: 4.0
+Requires at least: 5.0
 Requires PHP : 7.6
-Tested up to: 6.8
-Stable tag: 1.7
+Tested up to: 6.9
+Stable tag: 1.8
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,6 +65,15 @@ HubSpot Privacy Policy: https://legal.hubspot.com/privacy-policy
 
 
 == Changelog ==
+= 1.8 =
+* Compatible with WordPress latest version 6.9.4
+* Compatible with Woocommerce latest version 10.7.0
+
+= 1.7 =
+* Compatible with WordPress latest version 6.8.3
+* Compatible with Woocommerce latest version 10.0.0
+
+
 = 1.6 =
 * Compatible with WordPress latest version 6.5.3
 * Compatible with Woocommerce latest version 8.9.1
