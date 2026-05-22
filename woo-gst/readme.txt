@@ -2,9 +2,9 @@
 Contributors: starkinfo
 Tags: gst, woocommerce, addon, woocommerce addon, GST tax, woocommerce tax, Indian GST tax,hsn,hsn code, hsn code woocommerce, sac, sac code, sac code woocommerce, HSN/SAC, HSN/SAC code, HSN/SAC code woocommerce  
 Requires at least: 5.0
-Requires PHP : 7.6
-Tested up to: 6.9
-Stable tag: 1.8
+Requires PHP : 8.0
+Tested up to: 7.0
+Stable tag: 1.9
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,6 +65,11 @@ HubSpot Privacy Policy: https://legal.hubspot.com/privacy-policy
 
 
 == Changelog ==
+= 1.9 =
+* Tested with WordPress 7.0 and WooCommerce 10.7.0
+* Fixed blank line before PHP tag causing "headers already sent", white screen, and cart/session errors
+* Fixed Store location state field not editable in GST Settings
+
 = 1.8 =
 * Compatible with WordPress latest version 6.9.4
 * Compatible with Woocommerce latest version 10.7.0

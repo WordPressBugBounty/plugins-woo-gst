@@ -3,7 +3,7 @@
 * Plugin Name: GST Invoice for WooCommerce
 * Plugin URI: https://gstforecom.com/
 * Description: Generate GST-compliant invoices and automated tax slabs (CGST, SGST, IGST) for WooCommerce stores in India.
-* Version: 1.8
+* Version: 1.9
 * Requires Plugins: woocommerce
 * Author: Stark Digital
 * Author URI: https://starkdigital.net

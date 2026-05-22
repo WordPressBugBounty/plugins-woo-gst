@@ -1,4 +1,3 @@
-
 <?php
 /**
  * Custom Class
@@ -11,6 +10,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class WC_GST_Settings {
+
+    const CHECKOUT_GSTIN_FIELD_ID      = 'woo-gst/customer-gstin';
+    const CHECKOUT_HAS_GSTIN_FIELD_ID  = 'woo-gst/has-gstin-number';
+    const ORDER_GSTIN_META_KEY         = '_woo_gst_gstin_number';
+    const ORDER_HAS_GSTIN_META_KEY     = '_woo_gst_has_gstin_number';
 
     /**
      * Bootstraps the class and hooks required actions & filters.
@@ -26,6 +30,16 @@ class WC_GST_Settings {
 
         // Load admin JS properly via enqueue, not echoing <script>.
         add_action( 'admin_enqueue_scripts', array( $this, 'fn_load_custom_wp_admin_script' ) );
+
+        // Customer GSTIN on checkout (classic + block).
+        add_action( 'woocommerce_checkout_after_customer_details', array( $this, 'fn_render_checkout_gstin_section' ) );
+        add_action( 'woocommerce_checkout_process', array( $this, 'fn_validate_checkout_gstin' ) );
+        add_action( 'woocommerce_checkout_update_order_meta', array( $this, 'fn_save_checkout_gstin_field' ) );
+        add_action( 'woocommerce_init', array( $this, 'fn_register_block_checkout_gstin_field' ) );
+        add_action( 'woocommerce_set_additional_field_value', array( $this, 'fn_sync_block_gstin_to_billing_meta' ), 10, 4 );
+        add_action( 'woocommerce_blocks_validate_location_contact_fields', array( $this, 'fn_validate_block_contact_fields' ), 10, 3 );
+        add_action( 'wp_enqueue_scripts', array( $this, 'fn_enqueue_checkout_assets' ) );
+        add_action( 'woocommerce_admin_order_data_after_billing_address', array( $this, 'fn_display_admin_order_customer_gstin' ) );
 
         add_action( 'woocommerce_email_after_order_table', array( $this, 'fn_woocommerce_gstin_invoice_fields' ) );
         add_action( 'admin_notices', array( $this, 'print_pro_notice' ) );
@@ -49,15 +63,291 @@ class WC_GST_Settings {
     }
 
     /**
-     * Show GSTIN on emails (escaped)
+     * Enqueue checkout GSTIN toggle script and styles.
+     */
+    public function fn_enqueue_checkout_assets() {
+        $is_checkout_page = function_exists( 'is_checkout' ) && is_checkout() && ! is_order_received_page();
+        $has_checkout_blk = function_exists( 'has_block' ) && has_block( 'woocommerce/checkout' );
+
+        if ( ! $is_checkout_page && ! $has_checkout_blk ) {
+            return;
+        }
+
+        $asset_version = '1.8.2';
+
+        wp_enqueue_style(
+            'woo-gst-checkout',
+            gst_RELATIVE_PATH . 'css/custom.css',
+            array(),
+            $asset_version
+        );
+
+        wp_enqueue_script(
+            'woo-gst-checkout',
+            gst_RELATIVE_PATH . 'js/checkout-gstin.js',
+            array( 'jquery' ),
+            $asset_version,
+            true
+        );
+    }
+
+    /**
+     * Render GSTIN section on classic checkout (checkbox toggles text field).
+     *
+     * @param WC_Checkout $checkout Checkout object.
+     */
+    public function fn_render_checkout_gstin_section( $checkout ) {
+        echo '<div id="has_gstin_number">';
+        echo '<h2>' . esc_html__( 'GSTIN Number', 'woo-gst' ) . '</h2>';
+
+        woocommerce_form_field(
+            'woo_gst_has_gstin_number',
+            array(
+                'type'     => 'checkbox',
+                'label'    => __( 'Have GSTIN Number ?', 'woo-gst' ),
+                'required' => false,
+                'class'    => array( 'form-row-wide', 'has_gstin_number' ),
+            ),
+            $checkout->get_value( 'woo_gst_has_gstin_number' )
+        );
+
+        $has_gstin_checked = ! empty( $checkout->get_value( 'woo_gst_has_gstin_number' ) );
+        $wrap_style          = $has_gstin_checked ? '' : ' style="display:none;"';
+
+        echo '<div id="woo_gst_gstin_wrapper" class="woo-gst-gstin-row-wrap"' . $wrap_style . '>';
+
+        woocommerce_form_field(
+            'woo_gst_gstin_number',
+            array(
+                'type'        => 'text',
+                'label'       => __( 'GSTIN Number', 'woo-gst' ),
+                'placeholder' => __( 'GSTIN Number', 'woo-gst' ),
+                'required'    => false,
+                'class'       => array( 'form-row-wide', 'my-field-class', 'woo-gst-gstin-input-row' ),
+            ),
+            $checkout->get_value( 'woo_gst_gstin_number' )
+        );
+
+        echo '</div>';
+        echo '</div>';
+    }
+
+    /**
+     * Validate GSTIN when customer opts in on classic checkout.
+     */
+    public function fn_validate_checkout_gstin() {
+        if ( empty( $_POST['woo_gst_has_gstin_number'] ) ) {
+            return;
+        }
+
+        if ( empty( $_POST['woo_gst_gstin_number'] ) ) {
+            wc_add_notice( __( 'Please enter your GSTIN Number.', 'woo-gst' ), 'error' );
+            return;
+        }
+
+        $gstin = self::sanitize_gstin( wp_unslash( $_POST['woo_gst_gstin_number'] ) );
+        if ( strlen( $gstin ) !== 15 ) {
+            wc_add_notice( __( 'Please enter a valid 15-character GSTIN Number.', 'woo-gst' ), 'error' );
+        }
+    }
+
+    /**
+     * Validate block checkout GSTIN when the customer opts in.
+     *
+     * @param WP_Error $errors Validation errors.
+     * @param array    $fields Contact field values.
+     * @param string   $group  Field group.
+     */
+    public function fn_validate_block_contact_fields( $errors, $fields, $group ) {
+        if ( empty( $fields[ self::CHECKOUT_HAS_GSTIN_FIELD_ID ] ) ) {
+            return;
+        }
+
+        if ( empty( $fields[ self::CHECKOUT_GSTIN_FIELD_ID ] ) ) {
+            $errors->add( 'woo_gst_gstin', __( 'Please enter your GSTIN Number.', 'woo-gst' ) );
+            return;
+        }
+
+        $gstin = self::sanitize_gstin( $fields[ self::CHECKOUT_GSTIN_FIELD_ID ] );
+        if ( strlen( $gstin ) !== 15 ) {
+            $errors->add( 'woo_gst_gstin', __( 'Please enter a valid 15-character GSTIN Number.', 'woo-gst' ) );
+        }
+    }
+
+    /**
+     * Register customer GSTIN fields for WooCommerce Checkout block.
+     */
+    public function fn_register_block_checkout_gstin_field() {
+        if ( ! function_exists( 'woocommerce_register_additional_checkout_field' ) ) {
+            return;
+        }
+
+        woocommerce_register_additional_checkout_field(
+            array(
+                'id'            => self::CHECKOUT_HAS_GSTIN_FIELD_ID,
+                'label'         => __( 'Have GSTIN Number ?', 'woo-gst' ),
+                'optionalLabel' => __( 'Have GSTIN Number ? (optional)', 'woo-gst' ),
+                'location'      => 'contact',
+                'type'          => 'checkbox',
+                'required'      => false,
+            )
+        );
+
+        woocommerce_register_additional_checkout_field(
+            array(
+                'id'            => self::CHECKOUT_GSTIN_FIELD_ID,
+                'label'         => __( 'GSTIN Number', 'woo-gst' ),
+                'optionalLabel' => __( 'GSTIN Number (optional)', 'woo-gst' ),
+                'location'      => 'contact',
+                'type'          => 'text',
+                'required'      => false,
+                'attributes'    => array(
+                    'maxLength' => 15,
+                    'title'     => __( 'Enter your 15-character GSTIN', 'woo-gst' ),
+                ),
+            )
+        );
+    }
+
+    /**
+     * Save customer GSTIN from classic checkout.
+     *
+     * @param int   $order_id Order ID.
+     * @param array $data     Posted checkout data.
+     */
+    public function fn_save_checkout_gstin_field( $order_id, $data ) {
+        $order = wc_get_order( $order_id );
+        if ( ! $order ) {
+            return;
+        }
+
+        $has_gstin = ! empty( $_POST['woo_gst_has_gstin_number'] ) ? '1' : '';
+        $order->update_meta_data( self::ORDER_HAS_GSTIN_META_KEY, $has_gstin );
+
+        $gstin = '';
+        if ( $has_gstin && isset( $_POST['woo_gst_gstin_number'] ) ) {
+            $gstin = self::sanitize_gstin( wp_unslash( $_POST['woo_gst_gstin_number'] ) );
+        }
+
+        $order->update_meta_data( self::ORDER_GSTIN_META_KEY, $gstin );
+        $order->update_meta_data( '_billing_gstin', $gstin );
+        $order->save();
+    }
+
+    /**
+     * Mirror block checkout GSTIN values to order meta used by emails and admin.
+     *
+     * @param string         $key       Field key.
+     * @param mixed          $value     Field value.
+     * @param string         $group     Field group.
+     * @param WC_Order|mixed $wc_object Order or customer object.
+     */
+    public function fn_sync_block_gstin_to_billing_meta( $key, $value, $group, $wc_object ) {
+        if ( ! $wc_object instanceof WC_Order ) {
+            return;
+        }
+
+        if ( self::CHECKOUT_HAS_GSTIN_FIELD_ID === $key ) {
+            $wc_object->update_meta_data( self::ORDER_HAS_GSTIN_META_KEY, $value ? '1' : '' );
+            return;
+        }
+
+        if ( self::CHECKOUT_GSTIN_FIELD_ID === $key ) {
+            $gstin = self::sanitize_gstin( $value );
+            $wc_object->update_meta_data( self::ORDER_GSTIN_META_KEY, $gstin );
+            $wc_object->update_meta_data( '_billing_gstin', $gstin );
+        }
+    }
+
+    /**
+     * Show customer GSTIN on the order edit screen.
+     *
+     * @param WC_Order $order Order object.
+     */
+    public function fn_display_admin_order_customer_gstin( $order ) {
+        $gstin = self::get_order_customer_gstin( $order );
+        if ( '' === $gstin ) {
+            return;
+        }
+
+        echo '<p><strong>' . esc_html__( 'Customer GSTIN:', 'woo-gst' ) . '</strong> ' . esc_html( $gstin ) . '</p>';
+    }
+
+    /**
+     * Sanitize a GSTIN value.
+     *
+     * @param mixed $gstin Raw GSTIN.
+     * @return string
+     */
+    private static function sanitize_gstin( $gstin ) {
+        $gstin = sanitize_text_field( (string) $gstin );
+        $gstin = preg_replace( '/\s+/', '', $gstin );
+
+        return strtoupper( $gstin );
+    }
+
+    /**
+     * Get customer GSTIN stored on an order.
+     *
+     * @param WC_Order|int|null $order Order object or ID.
+     * @return string
+     */
+    public static function get_order_customer_gstin( $order ) {
+        if ( is_numeric( $order ) ) {
+            $order = wc_get_order( $order );
+        }
+
+        if ( ! $order instanceof WC_Order ) {
+            return '';
+        }
+
+        $meta_keys = array(
+            self::ORDER_GSTIN_META_KEY,
+            '_billing_gstin',
+            '_wc_other/' . self::CHECKOUT_GSTIN_FIELD_ID,
+            '_wc_billing/' . self::CHECKOUT_GSTIN_FIELD_ID,
+        );
+
+        foreach ( $meta_keys as $meta_key ) {
+            $gstin = $order->get_meta( $meta_key, true );
+            if ( ! empty( $gstin ) ) {
+                return self::sanitize_gstin( $gstin );
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Show store and customer GSTIN on order emails.
+     *
+     * @param WC_Order|bool $order Order object.
      */
     public function fn_woocommerce_gstin_invoice_fields( $order ) {
-        ?>
-        <p>
-            <strong><?php esc_html_e( 'GSTIN Number:', 'woo-gst' ); ?></strong>
-            <?php echo esc_html( get_option( 'woocommerce_gstin_number' ) ); ?>
-        </p>
-        <?php
+        $store_gstin    = get_option( 'woocommerce_gstin_number' );
+        $customer_gstin = self::get_order_customer_gstin( $order );
+
+        if ( empty( $store_gstin ) && '' === $customer_gstin ) {
+            return;
+        }
+
+        if ( ! empty( $store_gstin ) ) {
+            ?>
+            <p>
+                <strong><?php esc_html_e( 'Store GSTIN:', 'woo-gst' ); ?></strong>
+                <?php echo esc_html( $store_gstin ); ?>
+            </p>
+            <?php
+        }
+
+        if ( '' !== $customer_gstin ) {
+            ?>
+            <p>
+                <strong><?php esc_html_e( 'Customer GSTIN:', 'woo-gst' ); ?></strong>
+                <?php echo esc_html( $customer_gstin ); ?>
+            </p>
+            <?php
+        }
     }
 
     /**
@@ -134,8 +424,9 @@ JS;
      * Save settings.
      */
     public static function fn_update_settings() {
-        self::gst_insrt_tax_slab_rows();
         woocommerce_update_options( self::fn_get_settings() );
+        self::gst_insrt_tax_slab_rows();
+        self::fn_gst_callback();
     }
 
     /**
@@ -151,86 +442,72 @@ JS;
     }
 
     /**
-     * Insert tax classes and keep in sync with selected slabs
+     * Get GST tax slabs selected in plugin settings.
+     *
+     * @return string[]
      */
-    public static function fn_gst_callback() {
-        global $wpdb;
-
-        $table_prefix            = $wpdb->prefix . 'wc_tax_rate_classes';
-        $a_currunt_tax_slabs     = array();
-        $a_gst_tax_slabs         = array();
+    private static function get_selected_gst_tax_slabs() {
+        $a_gst_tax_slabs             = array();
         $s_woocommerce_product_types = get_option( 'woocommerce_product_types' );
 
-        if ( isset( $s_woocommerce_product_types ) && 'multiple' === $s_woocommerce_product_types ) {
+        if ( 'multiple' === $s_woocommerce_product_types ) {
             $s_product_types = get_option( 'woocommerce_gst_multi_select_slab' );
             if ( is_array( $s_product_types ) ) {
                 $a_gst_tax_slabs = array_merge( $a_gst_tax_slabs, $s_product_types );
             }
-        } elseif ( isset( $s_woocommerce_product_types ) && 'single' === $s_woocommerce_product_types ) {
+        } elseif ( 'single' === $s_woocommerce_product_types ) {
             $s_product_types = get_option( 'woocommerce_gst_single_select_slab' );
             if ( ! empty( $s_product_types ) ) {
                 $a_gst_tax_slabs[] = $s_product_types;
             }
         }
 
-        $s_woocommerce_tax_classes = get_option( 'woocommerce_tax_classes' );
+        return array_values( array_filter( array_map( 'trim', $a_gst_tax_slabs ) ) );
+    }
 
-        if ( isset( $s_woocommerce_tax_classes ) ) {
-            // $a_currunt_tax_slabs = explode( PHP_EOL, $s_woocommerce_tax_classes );
-            $a_currunt_tax_slabs = array();
+    /**
+     * Insert tax classes and keep in sync with selected slabs.
+     */
+    public static function fn_gst_callback() {
+        $a_gst_tax_slabs = self::get_selected_gst_tax_slabs();
 
-            $i_old_count   = count( $a_currunt_tax_slabs );
-            $old_tax_slabs = $a_currunt_tax_slabs;
+        if ( empty( $a_gst_tax_slabs ) ) {
+            return;
+        }
 
-            foreach ( $a_gst_tax_slabs as $gst_tax_value ) {
-                if ( ! in_array( $gst_tax_value, $a_currunt_tax_slabs, true ) ) {
-                    $a_currunt_tax_slabs[] = $gst_tax_value;
+        $woo_version = function_exists( 'woogst_get_woo_version_number' ) ? woogst_get_woo_version_number() : null;
+        $uses_wc_tax = class_exists( 'WC_Tax' ) && ( ! $woo_version || version_compare( $woo_version, '3.7.0', '>=' ) );
+
+        if ( $uses_wc_tax ) {
+            $existing_tax_classes = WC_Tax::get_tax_classes();
+
+            foreach ( $a_gst_tax_slabs as $tax_value ) {
+                if ( in_array( $tax_value, $existing_tax_classes, true ) ) {
+                    continue;
+                }
+
+                $result = WC_Tax::create_tax_class( $tax_value );
+                if ( ! is_wp_error( $result ) ) {
+                    $existing_tax_classes[] = $tax_value;
                 }
             }
 
-            $i_new_count = count( $a_currunt_tax_slabs );
-            if ( $i_new_count === $i_old_count ) {
-                return;
-            }
+            return;
+        }
 
-            $diff1 = array_diff( $old_tax_slabs, $a_currunt_tax_slabs );
-            $diff2 = array_diff( $a_currunt_tax_slabs, $old_tax_slabs );
+        // Legacy WooCommerce (< 3.7): store classes in the option.
+        $s_woocommerce_tax_classes = get_option( 'woocommerce_tax_classes', '' );
+        $a_currunt_tax_slabs       = ! empty( $s_woocommerce_tax_classes )
+            ? array_filter( array_map( 'trim', explode( "\n", $s_woocommerce_tax_classes ) ) )
+            : array();
 
-            if ( ! empty( $diff1 ) || ! empty( $diff2 ) ) {
-                $tax_slab_array = $a_currunt_tax_slabs;
-
-                if ( function_exists( 'woogst_get_woo_version_number' ) && woogst_get_woo_version_number() >= '3.7.0' ) {
-                    foreach ( $tax_slab_array as $tax_value ) {
-                        if ( empty( $tax_value ) ) {
-                            continue;
-                        }
-                        $slug = str_replace( '%', '', $tax_value );
-
-                        // PREPARED: avoid raw interpolation.
-                        $tax_rate_class_id = $wpdb->get_var(
-                            $wpdb->prepare(
-                                "SELECT tax_rate_class_id FROM $table_prefix WHERE name = %s",
-                                $tax_value
-                            )
-                        );
-
-                        if ( ( null === $tax_rate_class_id || '' === $tax_rate_class_id ) ) {
-                            $wpdb->insert(
-                                $table_prefix,
-                                array( 'name' => $tax_value, 'slug' => $slug ),
-                                array( '%s', '%s' )
-                            );
-                        }
-                    }
-                }
-            } else {
-                return;
+        foreach ( $a_gst_tax_slabs as $gst_tax_value ) {
+            if ( ! in_array( $gst_tax_value, $a_currunt_tax_slabs, true ) ) {
+                $a_currunt_tax_slabs[] = $gst_tax_value;
             }
         }
 
-        $a_currunt_tax_slabs = ( ! $a_currunt_tax_slabs ) ? $a_gst_tax_slabs : $a_currunt_tax_slabs;
-        $a_currunt_tax_slabs = implode( PHP_EOL, $a_currunt_tax_slabs );
-        update_option( 'woocommerce_tax_classes', $a_currunt_tax_slabs );
+        update_option( 'woocommerce_tax_classes', implode( "\n", $a_currunt_tax_slabs ) );
     }
 
     /**
@@ -255,14 +532,11 @@ JS;
             }
         }
 
-        $table_prefix = $wpdb->prefix . 'woocommerce_tax_rates';
-
-        $s_woocommerce_tax_classes = get_option( 'woocommerce_tax_classes' );
-        $a_currunt_tax_slabs = array();
-
-        if ( ! empty( $s_woocommerce_tax_classes ) ) {
-            $a_currunt_tax_slabs = explode( PHP_EOL, $s_woocommerce_tax_classes );
+        if ( empty( $a_multiple_slabs ) ) {
+            $a_multiple_slabs = self::get_selected_gst_tax_slabs();
         }
+
+        $table_prefix = $wpdb->prefix . 'woocommerce_tax_rates';
 
         foreach ( $a_multiple_slabs as $a_multiple_slab ) {
             $slab_name = preg_replace( '/%/', '', $a_multiple_slab );
@@ -271,7 +545,7 @@ JS;
             $state    = get_option( 'woocommerce_store_state' );
             $ut_state = array( 'CH', 'AN', 'DN', 'DD', 'LD' );
 
-            if ( isset( $state ) ) {
+            if ( ! empty( $state ) ) {
                 $tax_slab_row_cgst  = $state_tax . '% CGST';
                 $tax_slab_row_utgst = $state_tax . '% UTGST';
                 $tax_slab_row_sgst  = $state_tax . '% SGST';
@@ -416,7 +690,7 @@ JS;
                 'css'                => 'min-width:150px;',
                 'std'                => 'left',
                 'default'            => $state,
-                'custom_attributes'  => array( 'required' => 'required', 'readonly' => 'readonly' ),
+                'custom_attributes'  => array( 'required' => 'required' ),
                 'type'               => 'text',
             ),
 
