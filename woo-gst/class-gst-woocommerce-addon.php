@@ -543,7 +543,8 @@ JS;
             $state_tax = floatval( $slab_name ) / 2;
 
             $state    = get_option( 'woocommerce_store_state' );
-            $ut_state = array( 'CH', 'AN', 'DN', 'DD', 'LD' );
+            // UTs that use UTGST (not SGST). DL/PY/JK keep SGST (have legislature).
+            $ut_state = array( 'CH', 'AN', 'DN', 'DD', 'DH', 'LD', 'LA' );
 
             if ( ! empty( $state ) ) {
                 $tax_slab_row_cgst  = $state_tax . '% CGST';

@@ -4,11 +4,12 @@ Tags: gst, woocommerce, addon, woocommerce addon, GST tax, woocommerce tax, Indi
 Requires at least: 5.0
 Requires PHP : 8.0
 Tested up to: 7.0
-Stable tag: 1.9
+Stable tag: 2.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-This plugin is for GST tax setting. It set all tax including Tax slabs setting for CGST, SGST and IGST automatically.
+This plugin is for GST tax setting. It set all tax including Tax slabs setting for CGST, SGST, IGST and UTGST automatically.
+
 
 == Description ==
 
@@ -65,6 +66,9 @@ HubSpot Privacy Policy: https://legal.hubspot.com/privacy-policy
 
 
 == Changelog ==
+= 2.0 =
+* Extended UTGST support for Union Territories (CH, AN, DN, DD, DH, LD, LA)
+
 = 1.9 =
 * Tested with WordPress 7.0 and WooCommerce 10.7.0
 * Fixed blank line before PHP tag causing "headers already sent", white screen, and cart/session errors
