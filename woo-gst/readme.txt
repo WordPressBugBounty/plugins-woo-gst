@@ -2,9 +2,9 @@
 Contributors: starkinfo
 Tags: gst, woocommerce, addon, woocommerce addon, GST tax, woocommerce tax, Indian GST tax,hsn,hsn code, hsn code woocommerce, sac, sac code, sac code woocommerce, HSN/SAC, HSN/SAC code, HSN/SAC code woocommerce  
 Requires at least: 5.0
-Requires PHP : 8.0
-Tested up to: 7.0
-Stable tag: 2.0
+Requires PHP: 8.0
+Tested up to: 7.1
+Stable tag: 2.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -39,6 +39,13 @@ Whether you run a small business or a growing eCommerce brand, manual GST billin
 
 <a href="https://gstforecom.com/" target="_blank"><strong>Checkout our PRO plugin</strong></a>
 
+== GST Invoice Plugins for WooCommerce Marketplaces ==
+
+Need GST-compliant invoices for your multivendor store? Check our marketplace plugins:
+
+* <a href="https://gstforecom.com/gst-invoice-for-wcfm/" target="_blank"><strong>GST Invoice for WCFM Marketplace</strong></a>
+* <a href="https://gstforecom.com/gst-invoice-for-dokan/" target="_blank"><strong>GST Invoice for Dokan Marketplace</strong></a>
+
 == Installation ==
 
 1. Upload `woocommerce-gst-plugin` zip to the `/wp-content/plugins/` directory
@@ -66,6 +73,13 @@ HubSpot Privacy Policy: https://legal.hubspot.com/privacy-policy
 
 
 == Changelog ==
+= 2.1 =
+* Fixed critical error / white screen on plugin activation (safer bootstrap)
+* Fixed checkout fatal ArgumentCountError when saving customer GSTIN
+* Fixed GST settings nonce field outputting unexpected HTML
+* Fixed risky privacy auto-gate scanner that could interfere with other plugins
+* Fixed admin notice and admin scripts loading on unrelated screens
+
 = 2.0 =
 * Extended UTGST support for Union Territories (CH, AN, DN, DD, DH, LD, LA)
 
@@ -109,6 +123,9 @@ HubSpot Privacy Policy: https://legal.hubspot.com/privacy-policy
 
 
 == Upgrade Notice == 
+= 2.1 =
+* Fixes activation critical error and classic checkout GSTIN save fatal.
+
 = 1.3 =
 * Fixed Auto create Tax Slabs issue.
 * Added UTGST support for five Union Territories of India.

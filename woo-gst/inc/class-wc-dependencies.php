@@ -4,6 +4,7 @@
  *
  * Checks if WooCommerce is enabled
  */
+if ( ! class_exists( 'WC_GST_Dependencies' ) ) {
 class WC_GST_Dependencies {
 
 	private static $active_plugins;
@@ -23,4 +24,4 @@ class WC_GST_Dependencies {
 	}
 
 }
-?>
+}

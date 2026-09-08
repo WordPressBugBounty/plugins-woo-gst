@@ -12,26 +12,13 @@
     float: left;
 }
 
-#has_gstin_number {
-    clear: both;
-    margin: 1.5em 0;
+/* Classic checkout: hide GSTIN text field until checkbox is checked */
+.woocommerce-checkout #woo_gst_gstin_number_field.woo-gst-gstin-input-row {
+    display: none;
 }
 
-#has_gstin_number h2 {
-    margin-bottom: 0.75em;
-}
-
-/* Hidden by default until "Have GSTIN Number?" is checked */
-#has_gstin_number .woo-gst-gstin-row-wrap,
-#has_gstin_number #woo_gst_gstin_number_field,
-#has_gstin_number .woo-gst-gstin-input-row {
-    display: none !important;
-}
-
-#has_gstin_number.woo-gst-show-gstin .woo-gst-gstin-row-wrap,
-#has_gstin_number.woo-gst-show-gstin #woo_gst_gstin_number_field,
-#has_gstin_number.woo-gst-show-gstin .woo-gst-gstin-input-row {
-    display: block !important;
+body.woo-gst-gstin-visible.woocommerce-checkout #woo_gst_gstin_number_field.woo-gst-gstin-input-row {
+    display: block;
 }
 
 /* Checkout block: hide GSTIN text field until checkbox is checked */

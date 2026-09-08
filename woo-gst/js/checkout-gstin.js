@@ -1,6 +1,10 @@
 jQuery( function ( $ ) {
+	var config = window.wooGstCheckout || {};
+	var isBlockCheckout = !! config.isBlockCheckout;
+
 	/**
-	 * Classic checkout (shortcode).
+	 * Classic checkout — toggle visibility via body class only (no .hide()).
+	 * Avoids conflicts with WooCommerce Checkout Manager conditional logic.
 	 */
 	function toggleClassicGstinField() {
 		var $checkbox = $( '#woo_gst_has_gstin_number' );
@@ -9,26 +13,21 @@ jQuery( function ( $ ) {
 			return;
 		}
 
-		var $wrapper  = $( '#woo_gst_gstin_wrapper' );
 		var $gstinRow = $( '#woo_gst_gstin_number_field' );
 
 		if ( $checkbox.is( ':checked' ) ) {
-			$wrapper.removeAttr( 'hidden' ).css( 'display', '' );
-			$gstinRow.removeAttr( 'hidden' ).css( 'display', '' );
-			$( '#has_gstin_number' ).addClass( 'woo-gst-show-gstin' );
+			$( 'body' ).addClass( 'woo-gst-gstin-visible' );
 			$gstinRow.addClass( 'validate-required' );
 			$( '#woo_gst_gstin_number' ).attr( 'aria-required', 'true' );
 		} else {
-			$wrapper.attr( 'hidden', 'hidden' ).hide();
-			$gstinRow.attr( 'hidden', 'hidden' ).hide();
-			$( '#has_gstin_number' ).removeClass( 'woo-gst-show-gstin' );
+			$( 'body' ).removeClass( 'woo-gst-gstin-visible' );
 			$gstinRow.removeClass( 'validate-required woocommerce-invalid' );
 			$( '#woo_gst_gstin_number' ).val( '' ).removeAttr( 'aria-required' );
 		}
 	}
 
 	/**
-	 * Checkout block (contact fields).
+	 * Block checkout — toggle via CSS class on the checkout container only.
 	 */
 	function toggleBlockGstinField() {
 		var $checkbox = $(
@@ -39,59 +38,37 @@ jQuery( function ( $ ) {
 			return;
 		}
 
-		var $gstinWrap = $(
-			'.wc-block-components-address-form__woo-gst-customer-gstin, #contact-woo-gst-customer-gstin'
-		).closest( '.wc-block-components-text-input' );
-
-		if ( ! $gstinWrap.length ) {
-			$gstinWrap = $( '.wc-block-components-address-form__woo-gst-customer-gstin' );
-		}
-
 		var $checkout = $( '.wc-block-checkout, .wp-block-woocommerce-checkout' );
 
 		if ( $checkbox.is( ':checked' ) ) {
 			$checkout.addClass( 'woo-gst-show-gstin' );
-			$gstinWrap.removeAttr( 'hidden' ).css( 'display', '' );
 		} else {
 			$checkout.removeClass( 'woo-gst-show-gstin' );
-			$gstinWrap.attr( 'hidden', 'hidden' ).hide();
 			$( '#contact-woo-gst-customer-gstin' ).val( '' );
 		}
 	}
 
-	function toggleAllGstinFields() {
-		toggleClassicGstinField();
-		toggleBlockGstinField();
-	}
-
-	function initBlockGstinObserver() {
-		var checkout = document.querySelector( '.wc-block-checkout, .wp-block-woocommerce-checkout' );
-
-		if ( ! checkout || checkout.dataset.wooGstObserver ) {
-			return;
-		}
-
-		checkout.dataset.wooGstObserver = '1';
-
-		var observer = new MutationObserver( function () {
+	function toggleGstinFields() {
+		if ( isBlockCheckout ) {
 			toggleBlockGstinField();
-		} );
-
-		observer.observe( checkout, { childList: true, subtree: true } );
+		} else {
+			toggleClassicGstinField();
+		}
 	}
 
-	toggleAllGstinFields();
-	initBlockGstinObserver();
+	toggleGstinFields();
 
 	$( document.body ).on(
 		'change',
 		'#woo_gst_has_gstin_number, #contact-woo-gst-has-gstin-number, input[name="contact_woo-gst/has-gstin-number"]',
-		toggleAllGstinFields
+		toggleGstinFields
 	);
 
-	$( document.body ).on( 'updated_checkout', toggleAllGstinFields );
-
-	// Block checkout may render after DOM ready.
-	setTimeout( toggleAllGstinFields, 300 );
-	setTimeout( toggleAllGstinFields, 1000 );
+	if ( ! isBlockCheckout ) {
+		$( document.body ).on( 'updated_checkout', toggleClassicGstinField );
+	} else {
+		// Block checkout may render fields after DOM ready.
+		setTimeout( toggleBlockGstinField, 300 );
+		setTimeout( toggleBlockGstinField, 1000 );
+	}
 } );

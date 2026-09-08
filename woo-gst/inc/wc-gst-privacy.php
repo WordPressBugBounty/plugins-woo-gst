@@ -7,7 +7,6 @@ if (!defined('ABSPATH')) exit;
  * - OFF by default (explicit opt-in only)
  * - Respects browser Do Not Track
  * - Adds a tiny Settings page
- * - Optionally auto-gates tracker callbacks registered by this plugin
  */
 
 # -------- Settings (OFF by default) --------
@@ -15,7 +14,11 @@ add_action('admin_init', function () {
     register_setting(
         'wc_gst_privacy',
         'wc_gst_telemetry_optin',
-        ['type' => 'boolean', 'sanitize_callback' => fn($v) => (bool)$v, 'default' => false]
+        array(
+            'type'              => 'boolean',
+            'sanitize_callback' => 'wc_gst_sanitize_telemetry_optin',
+            'default'           => false,
+        )
     );
 });
 
@@ -56,24 +59,36 @@ add_action('admin_menu', function () {
 });
 
 # -------- Helper gates --------
-function wc_gst_dnt_enabled(): bool {
-    return isset($_SERVER['HTTP_DNT']) && $_SERVER['HTTP_DNT'] === '1';
+if ( ! function_exists( 'wc_gst_sanitize_telemetry_optin' ) ) {
+	function wc_gst_sanitize_telemetry_optin( $v ) {
+		return (bool) $v;
+	}
 }
 
-function wc_gst_can_track(): bool {
-    // Explicit admin opt-in only
-    if (!(bool) get_option('wc_gst_telemetry_optin', false)) return false;
-    // Respect Do Not Track
-    if (wc_gst_dnt_enabled()) return false;
-    // Final developer hook (stays false unless you flip it)
-    return (bool) apply_filters('wc_gst_allow_tracking', true);
+if ( ! function_exists( 'wc_gst_dnt_enabled' ) ) {
+	function wc_gst_dnt_enabled() {
+		return isset( $_SERVER['HTTP_DNT'] ) && '1' === $_SERVER['HTTP_DNT'];
+	}
 }
 
-/**
- * Convenience: run callback only if tracking is allowed.
- */
-function wc_gst_maybe_track(callable $cb): void {
-    if (wc_gst_can_track()) { $cb(); }
+if ( ! function_exists( 'wc_gst_can_track' ) ) {
+	function wc_gst_can_track() {
+		if ( ! (bool) get_option( 'wc_gst_telemetry_optin', false ) ) {
+			return false;
+		}
+		if ( wc_gst_dnt_enabled() ) {
+			return false;
+		}
+		return (bool) apply_filters( 'wc_gst_allow_tracking', true );
+	}
+}
+
+if ( ! function_exists( 'wc_gst_maybe_track' ) ) {
+	function wc_gst_maybe_track( $cb ) {
+		if ( is_callable( $cb ) && wc_gst_can_track() ) {
+			$cb();
+		}
+	}
 }
 
 # -------- Add suggested Privacy Policy text --------
@@ -83,95 +98,3 @@ add_action('admin_init', function () {
         wp_add_privacy_policy_content(__('WooCommerce GST', 'wc-gst'), wp_kses_post($text));
     }
 });
-
-# -------- (Optional) Auto-gate common tracker callbacks from THIS plugin only --------
-/**
- * If your plugin previously hooked GA/FB/Hotjar/etc. directly, this block
- * finds those callbacks and wraps them so they only run after consent.
- * It does NOT touch other plugins/themes.
- */
-add_action('plugins_loaded', function () {
-    if (wc_gst_can_track()) return; // no need to auto-gate when already opted in
-
-    // Which hooks might print/enqueue trackers:
-    $hooks = [
-        'wp_head', 'wp_footer',
-        'wp_enqueue_scripts', 'admin_enqueue_scripts',
-        'admin_head', 'admin_footer',
-        'admin_init'
-    ];
-
-    // Simple matchers for tracker-ish callback names
-    $needles = [
-        'track','telemetry','stats','analytics','ga','gtm','facebook','fbq',
-        'hotjar','clarity','mixpanel','posthog','plausible','matomo','pixel','stat'
-    ];
-
-    foreach ($hooks as $hook) {
-        if (empty($GLOBALS['wp_filter'][$hook])) continue;
-
-        $filter_obj = $GLOBALS['wp_filter'][$hook];
-        // WP 4.7+ uses WP_Hook objects
-        $callbacks = is_object($filter_obj) && property_exists($filter_obj, 'callbacks')
-            ? $filter_obj->callbacks
-            : (array) $filter_obj;
-
-        foreach ($callbacks as $priority => $group) {
-            foreach ($group as $unique_id => $cb) {
-                $fn = $cb['function'];
-
-                // Only touch callbacks defined by this plugin (path contains plugin folder)
-                $fn_name = '';
-                if (is_string($fn)) {
-                    $fn_name = $fn;
-                } elseif (is_array($fn) && is_object($fn[0])) {
-                    $fn_name = get_class($fn[0]) . '::' . $fn[1];
-                } elseif (is_array($fn) && is_string($fn[0])) {
-                    $fn_name = $fn[0] . '::' . $fn[1];
-                } else {
-                    continue; // skip closures/unknown
-                }
-
-                $lower = strtolower($fn_name);
-                $is_tracker = false;
-                foreach ($needles as $needle) {
-                    if (strpos($lower, $needle) !== false) { $is_tracker = true; break; }
-                }
-
-                // Only wrap if the function name suggests tracking AND
-                // the file path of the callback lives inside this plugin.
-                $reflect = null;
-                try {
-                    if (is_string($fn)) {
-                        $reflect = new ReflectionFunction($fn);
-                    } elseif (is_array($fn) && is_object($fn[0])) {
-                        $reflect = new ReflectionMethod($fn[0], $fn[1]);
-                    } elseif (is_array($fn) && is_string($fn[0])) {
-                        $reflect = new ReflectionMethod($fn[0], $fn[1]);
-                    }
-                } catch (Throwable $e) { $reflect = null; }
-
-                if (!$is_tracker || !$reflect) continue;
-
-                $file = $reflect->getFileName();
-                // Current plugin dir
-                $plugin_dir = trailingslashit(plugin_dir_path(dirname(__FILE__)));
-                if (strpos($file, $plugin_dir) !== 0) continue; // belongs to something else; leave it
-
-                // Remove original callback and re-add wrapped with consent check
-                remove_action($hook, $fn, $priority);
-                add_action($hook, function () use ($fn) {
-                    wc_gst_maybe_track(function () use ($fn) {
-                        // Call the original
-                        if (is_string($fn)) {
-                            call_user_func($fn);
-                        } elseif (is_array($fn)) {
-                            call_user_func($fn);
-                        }
-                    });
-                }, $priority);
-            }
-        }
-    }
-});
-
